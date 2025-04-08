@@ -1,0 +1,243 @@
+---
+title: "Module 4 Project: A Prescriptive Model for Strategic
+Decision-making, An Inventory Management Decision
+Model"
+output: 
+  pdf_document: default
+---
+# Introduction 
+
+This report presents the importance of inventory management from the perspective of cost and operational efficiency. I proceed to analyze the EOQ model to find the optimum quantity to be ordered so as to minimize total inventory costs. Part 1 focuses on deterministic demand (15,000 units per year) while Part 2 introduces demand variability using a triangular distribution (13,000 - 17,000 units with mode 15,000) to analyze the implications of uncertainty. The findings from this study, based on mathematical modeling, optimization, and simulation analysis, are the data-driven recommendations for strategic decision-making on inventory management.
+
+# Part 1: Inventory Cost Analysis
+
+# 1.
+
+# Define given parameters
+
+```{r}
+annual_demand <- 15000  # Annual demand (D)
+cost_per_unit <- 80  # Cost per unit (C)
+holding_rate <- 0.18  # Holding cost rate (h)
+ordering_cost <- 220  # Ordering cost per order (S)
+```
+
+# Uncontrollable Inputs
+
+-   Annual demand (D): The quantity of units needed annually, assuming no change.
+-   Ordering cost (S): A fixed price per order that is established by supplier contracts.
+-   Holding cost rate (h): A proportion of unit cost that accounts for depreciation, insurance, and storage expenses.
+-   Cost per unit (C): Depending on the state of the market, this is the cost of producing or acquisition per unit.
+
+# Model Parameters
+
+```{r}
+holding_cost <- holding_rate * cost_per_unit  # Holding cost per unit per year
+```
+
+# Decision Variable
+
+-   Order Quantity (Q): The primary decision variable that affects total inventory cost.
+
+# 2.
+
+# Economic Order Quantity (EOQ) Calculation
+
+```{r}
+eoq <- sqrt((2 * annual_demand * ordering_cost) / holding_cost)
+eoq
+```
+
+# Define functions to compute annual ordering cost and annual holding cost
+
+```{r}
+annual_ordering_cost <- function(order_qty) {
+  return((annual_demand / order_qty) * ordering_cost)
+}
+
+annual_holding_cost <- function(order_qty) {
+  return((order_qty / 2) * holding_cost)
+}
+```
+
+# Define function for total inventory cost
+
+```{r}
+total_inventory_cost <- function(order_qty) {
+  return(annual_ordering_cost(order_qty) + annual_holding_cost(order_qty))
+}
+```
+
+# 3.
+
+```{r}
+# Generate a range of order quantities for analysis
+order_quantities <- seq(100, 2000, by=10)
+ordering_costs <- sapply(order_quantities, annual_ordering_cost)
+holding_costs <- sapply(order_quantities, annual_holding_cost)
+total_costs <- sapply(order_quantities, total_inventory_cost)
+
+# Find the optimal order quantity using optimization
+optimal_order <- optimize(total_inventory_cost, interval = c(100, 2000))$minimum
+
+# Use data table to find an approximate order quantity with the smallest total cost
+library(data.table)
+
+cost_table <- data.table(
+  Order_Quantity = order_quantities,
+  Ordering_Cost = ordering_costs,
+  Holding_Cost = holding_costs,
+  Total_Cost = total_costs
+)
+cost_table
+```
+
+# 4.
+
+```{r}
+# Plot Total Cost vs Order Quantity
+plot(order_quantities, total_costs, type='l', col='blue', lwd=2,
+     xlab='Order Quantity', ylab='Total Cost',
+     main='Total Cost vs Order Quantity')
+abline(v=optimal_order, col='red', lty=2)
+legend('topright', legend = c('Total Cost', 'Optimal Order Quantity'),
+       col = c('blue', 'red'), lty = c(1,2))
+```
+
+# 5.
+
+```{r}
+# Find the order quantity with the minimum total cost
+optimal_entry <- cost_table[which.min(Total_Cost)]
+optimal_entry
+```
+
+# 6.
+
+```{r}
+# Varying Holding Cost Rate
+holding_rate_variations <- seq(0.1, 0.3, by=0.02)
+holding_cost_variations <- holding_rate_variations * cost_per_unit
+eoq_variations <- sqrt((2 * annual_demand * ordering_cost) / holding_cost_variations)
+
+data_variation <- data.table(
+  Holding_Rate = holding_rate_variations,
+  EOQ = eoq_variations
+)
+data_variation
+```
+
+# 7. Explain and analyze the results.
+
+1.  Summary of Findings.
+
+-   The order quantity which would yield a minimum total cost is about 680 units.
+-   This EOQ balances the ordering costs and holding costs, thereby ensuring an efficient inventory management strategy. -\> By ordering 680 units per order, the company is capable of minimizing the total inventory cost.
+
+2.  Insights Of Economic Order Quantity (EOQ).
+
+-   EOQ is derived from the annual demand (15000 units), ordering cost (\$220 per order), and holding cost (18% of unit cost).
+-   A higher EOQ results in fewer orders but increases holding costs, while a lower EOQ means more frequent orders but lower holding costs. -\> The EOQ model minimizes total cost by balancing these two competing factors.
+
+3.  Interpretation of The Total Cost vs. Order Quantity Visualization.
+
+-   The visualization of Total Cost vs Order Quantity has a U-shaped pattern:
+    -   Left Side (Low Order Quantity): Very high total costs due to frequent orders and high ordering costs.
+    -   Middle (Optimal EOQ \~680 units): The lowest total cost, balancing ordering and holding costs.
+    -   Right Side (High Order Quantity): Very high total costs arising from excessive holding costs.
+-   The red vertical line marks the EOQ (\~680 units) is the most cost-effective point.
+
+4.  What-if Analysis: Effects of Changing Holding Cost Rates.
+
+-   Sensitivity analysis reveals that in fact, the higher the holding cost rate becomes, the lower the EOQ is:
+    -   An increase in holding cost (from 10% to 30%) will make the EOQ decreases to limit storage costs.
+    -   A decrease in holding cost will then make ordering larger quantities becomes cheaper.
+
+-> The company should monitor storage costs with varying order sizes.
+
+5.  Recommendations.
+
+- We should adopt order quantity that is close to 680 units per order to minimize inventory costs.
+- We should monitor holding and ordering costs:
+  - If storage costs increase, reduce order sizes to minimize inventory holding costs.
+  - If ordering costs decrease, placing smaller, more frequent orders may be beneficial.
+- And last but not least, we will regularly reassess demand and cost trends to ensure EOQ remains optimal.
+
+# Part 2: Simulation of Demand Variability
+
+# 1.
+
+```{r}
+# Load required library
+library(triangle)
+
+# Set seed for reproducibility
+set.seed(123)
+
+# Generate 1000 simulated demands with a triangular distribution
+demand_sim <- rtriangle(1000, a=13000, b=17000, c=15000)
+
+# Compute EOQ and total cost for each simulation
+sim_results <- data.table(
+  Demand = demand_sim,
+  EOQ = sqrt((2 * demand_sim * ordering_cost) / holding_cost)
+)
+sim_results$Total_Cost <- total_inventory_cost(sim_results$EOQ)
+
+# Compute confidence intervals for EOQ and total cost
+conf_interval <- function(x) {
+  mean_x <- mean(x)
+  error_margin <- qt(0.975, df=length(x)-1) * sd(x) / sqrt(length(x))
+  return(c(mean_x - error_margin, mean_x + error_margin))
+}
+
+# Compute 95% Confidence Intervals
+ci_total_cost <- conf_interval(sim_results$Total_Cost)
+ci_eoq <- conf_interval(sim_results$EOQ)
+ci_orders_per_year <- conf_interval(annual_demand / sim_results$EOQ)
+
+# Display results
+list(
+  Confidence_Interval_Total_Cost = ci_total_cost,
+  Confidence_Interval_EOQ = ci_eoq,
+  Confidence_Interval_Orders_Per_Year = ci_orders_per_year
+)
+
+```
+# 2. Explain and analyze the results.
+
+1. Simulation Overview
+- The aim of this simulation was to to account for uncertainty in annual demand by presuming that it adopts a triangular distribution between 13,000 and 17,000 units, with the most likely value being 15,000 units. 
+- Using 1,000 simulated demand scenarios, I recalculated the Economic Order Quantity (EOQ) and total inventory cost for each occurrence, allowing us to derive confidence intervals for key metrics.
+
+2. Key Findings from the Simulation
+
+2.1. Estimated Minimum Total Cost (95% Confidence Interval)
+- Range: $9,752.18 to $9,752.71
+- Interpretation: Costs are stable with demand variations, showing a steady order strategy cost-efficient in nature.
+
+2.2. Expected Order Quantity (95% Confidence Interval)
+- Range: 675.44 to 677.72 units
+- Interpretation: 
+  - EOQ is still close to the previously calculated EOQ (~680 units) in Part 1.
+  - This confirms that despite demand variability, the EOQ approach remains robust and reliable. 
+
+2.3. Expected Annual Number of Orders (95% Confidence Interval)
+- Range: 22.15 to 22.22 orders per year
+- Interpretation: The number of orders required annually remains relatively stable and thereby suggests that even with demand fluctuations, order planning can be predictable.
+
+3. Probability Distribution Analysis
+
+- The simulated EOQ and total cost distributions from the simulation appear normally distributed since their confidence intervals were narrow. 
+- The annual demand follows a triangular distribution, but the EOQ and total cost behave quite uniformly and steadily because the square root relationship exists in the EOQ formula.
+
+4. Business Implications and Recommendations
+
+- The findings imply that demand variations have a minimal effect on the optimal order quantity.
+- The company should continue ordering around 680 units per order, as this quantity remains cost-efficient even under uncertain demand.
+- The expected number of annual orders is around 22 times a year which remains stable, thus allowing the procurement team to plan order schedules with confidence.
+- Total inventory costs being predictable end up being an advantage in financial planning and budgeting. 
+
+# Conclusion
+
+The results from Part 1 and 2 suggest that the EOQ model remains effective even under demand variability. In Part 1, the estimated EOQ shows that the optimal order quantity should be around 680 units and allows minimizing total inventory cost. Moreover, the study examines the sensitivity of the results indicating that variations in holding costs also affect EOQ. In Part 2, the Monte Carlo simulation with 1,000 runs showing demand variation proved that total cost, order frequency, and EOQ remain steady, which reinforces the robustness of the EOQ application. The company could confidently operationalize this inventory strategy with due regard for fluctuating costs and possible shifts in demand. Recommended for future deliberation are the assessments of safety stock levels and possible changes in inventory policies if demand forecasting variability increased.
